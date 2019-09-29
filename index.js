@@ -1,5 +1,10 @@
 // @ts-check
 
+// ==Bookmarklet==
+// @name Music-Meta-DOM-Scraper
+// @author Joshua Tzucker
+// ==/Bookmarklet==
+
 /**
  * @typedef {Object<string, any>} SongMeta
  * @property {string} songTitle
@@ -252,5 +257,5 @@ const MusicMetaScraper = (function(){
 	return MmsConstructor;
 })();
 
-var test = new MusicMetaScraper();
-test.rip();
+var scraper = new MusicMetaScraper();
+scraper.rip();
