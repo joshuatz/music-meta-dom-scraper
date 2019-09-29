@@ -1,0 +1,12 @@
+{
+  "name": "music-meta-scraper",
+  "version": "1.0.0",
+  "description": "",
+  "main": "music-meta-scraper.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "Joshua Tzucker",
+  "license": "MIT"
+}
