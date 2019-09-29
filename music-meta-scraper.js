@@ -95,7 +95,39 @@ const MusicMetaScraper = (function(){
 		allMusic: function(){
 			/** @type {SongCollection} */
             let result = [];
+            const albumTitle = _getInnerText(document.querySelector('h1.album-title'));
+            const primaryGenre = _getInnerText(document.querySelector('.basic-info .genre h4')).trim();
+            let genres = [primaryGenre];
+            const genreLinks = document.querySelectorAll('.basic-info .styles a[href*="style"]');
+            for (let x=0; x<genreLinks.length; x++){
+                const genreText = _getInnerText(genreLinks[x]);
+                if (genres.indexOf(genreText)==-1){
+                    genres.push(genreText);
+                }
+            }
+            let releaseYear = null;
+            const releaseDateSpan = document.querySelector('.basic-info .release-date span');
+            if (releaseDateSpan){
+                releaseYear = parseInt(/\d{4}$/.exec(_getInnerText(releaseDateSpan))[0],10);
+            }
 
+            const trackElems = document.querySelectorAll('tr.track');
+            for (let x=0; x<trackElems.length; x++){
+                const currTrack = trackElems[x];
+                /** @type {SongMeta} */
+                let songInfo = {
+                    songTitle: _getInnerText(currTrack.querySelector('.title')),
+                    artistName: _getInnerText(currTrack.querySelector('.composer')),
+                    albumTitle: albumTitle,
+                    primaryGenre: primaryGenre,
+                    genres: genres,
+                    durationLength: _getInnerText(currTrack.querySelector('td.time'))
+                };
+                if (releaseYear){
+                    songInfo.releaseYear = releaseYear;
+                }
+                result.push(songInfo);
+            }
             return result;
 		}
 	}
@@ -117,6 +149,10 @@ const MusicMetaScraper = (function(){
         if (/^(?:www\.){0,1}bing\.com/.test(window.location.hostname)){
             siteInfo.ripper = _rippers.bing;
             siteInfo.name = 'Bing';
+        }
+        else if (/^(?:www\.){0,1}allmusic\.com/.test(window.location.hostname)){
+            siteInfo.ripper = _rippers.allMusic;
+            siteInfo.name = 'AllMusic';
         }
         return siteInfo;
 	}
