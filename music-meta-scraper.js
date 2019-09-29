@@ -96,7 +96,7 @@ const MusicMetaScraper = (function(){
 			/** @type {SongCollection} */
             let result = [];
             const albumTitle = _getInnerText(document.querySelector('h1.album-title'));
-            const primaryGenre = _getInnerText(document.querySelector('.basic-info .genre h4')).trim();
+            const primaryGenre = _getInnerText(document.querySelector('.basic-info .genre a[href*="genre"]')).trim();
             let genres = [primaryGenre];
             const genreLinks = document.querySelectorAll('.basic-info .styles a[href*="style"]');
             for (let x=0; x<genreLinks.length; x++){
@@ -131,9 +131,10 @@ const MusicMetaScraper = (function(){
             return result;
 		}
 	}
-	function MmsConstructor() {
+	function MmsConstructor(preferJson) {
         /** @type {SongCollection} */
-		this.scrapedInfo = [];
+        this.scrapedInfo = [];
+        this.prefersJson = typeof(preferJson)==='boolean' ? preferJson : false;
     }
     /**
      * Public Methods
@@ -173,19 +174,36 @@ const MusicMetaScraper = (function(){
         }
     }
     MmsConstructor.prototype.copyMeta = function() {
+        let valueToCopy = this.prefersJson ? this.scrapedInfo : MmsConstructor.metaArrToTsvString(this.scrapedInfo);
         // @ts-ignore
         if (typeof(window.copy)==='function'){
             // @ts-ignore
-            window.copy(this.scrapedInfo);
+            window.copy(valueToCopy);
         }
         else {
-            console.warn(`copy() is not available.`);
+            console.warn(`copy() is not available. Outputting to console instead:`);
+            console.log(valueToCopy);
         }
     }
 
     /**
      * Static Methods
      */
+
+    /**
+     * @param {SongCollection} metaArr - Array of song meta JSON to convert to TSV
+     * @returns {string} TSV (tab separated values) string
+     */
+    MmsConstructor.metaArrToTsvString = function(metaArr){
+        let finalTsvVal = '';
+        for (let x=0; x<metaArr.length; x++){
+            const song = metaArr[x];
+            let line = `${song.songTitle}\t${song.artistName}\t${song.albumTitle}`;
+            finalTsvVal += (finalTsvVal !== '') ? '\n' : '';
+            finalTsvVal += line;
+        }
+        return finalTsvVal;
+    }
     MmsConstructor.scrapeBingKGraph = function(entityArea) {
         const songArea = entityArea;
         let isSong = false;
