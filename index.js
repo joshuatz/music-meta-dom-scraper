@@ -49,6 +49,7 @@ const MusicMetaScraper = (function(){
 	.${_masterClass} .mmsFTlbr span {
 		font-size: 19px;
 		font-family: serif;
+		cursor: pointer;
 	}
 	.${_masterClass} .mmsFContent {
 		width: 100%;
@@ -343,6 +344,6 @@ const MusicMetaScraper = (function(){
 })();
 
 // @ts-ignore
-window.musicMetaScraper = new MusicMetaScraper();
+window.musicMetaScraper = typeof(window.musicMetaScraper)==='object' ? window.musicMetaScraper : (new MusicMetaScraper());
 // @ts-ignore
 window.musicMetaScraper.displayMeta();
