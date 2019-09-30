@@ -21,6 +21,47 @@
  */
 
 const MusicMetaScraper = (function(){
+	const _masterClass = 'musicMetaScraper';
+	const _uiHtml = `
+	<div class="${_masterClass} fullscreenWrapper">
+		<div class="mmsFTlbr"><span>X</span></div>
+		<div class="mmsFContent">
+			<textarea id="mmsTextOut" readonly></textarea>
+		</div>
+	</div>
+	<style>
+	.${_masterClass}.fullscreenWrapper {
+		position: absolute;
+		width: 80%;
+		height: 80%;
+		top: 10%;
+		left: 10%;
+	}
+	.${_masterClass} .mmsFTlbr {
+		width: 100%;
+		background-color: black;
+		color: white;
+		padding: 10px;
+		border-top-left-radius: 10px;
+		border-top-right-radius: 10px;
+		text-align: right;
+	}
+	.${_masterClass} .mmsFTlbr span {
+		font-size: 19px;
+		font-family: serif;
+	}
+	.${_masterClass} .mmsFContent {
+		width: 100%;
+		height: calc(100% - 40px);
+		padding: 0px 14px 12px 7px;
+		background-color: black;
+	}
+	.${_masterClass} #mmsTextOut {
+		width: 100%;
+		height: 100%;
+	}
+	</style>
+	`;
 	/**
 	 * Get a empty song object
 	 * @returns {SongMeta}
@@ -49,6 +90,17 @@ const MusicMetaScraper = (function(){
 		}
 		else {
 			return '';
+		}
+	}
+	const _copyString = function(strToCopy) {
+		// @ts-ignore
+		if (typeof(window.copy)==='function'){
+			// @ts-ignore
+			window.copy(strToCopy);
+		}
+		else {
+			console.warn(`copy() is not available. Outputting to console instead:`);
+			console.log(strToCopy);
 		}
 	}
 	const _rippers = {
@@ -140,6 +192,8 @@ const MusicMetaScraper = (function(){
 		/** @type {SongCollection} */
 		this.scrapedInfo = [];
 		this.prefersJson = typeof(preferJson)==='boolean' ? preferJson : false;
+		this.injected = false;
+		this.uiElem = null;
 	}
 	/**
 	 * Public Methods
@@ -162,33 +216,64 @@ const MusicMetaScraper = (function(){
 		}
 		return siteInfo;
 	}
-	MmsConstructor.prototype.displayMeta = function(){
-		//
-	}
-	MmsConstructor.prototype.hideMeta = function(){
-		//
-	}
-	MmsConstructor.prototype.rip = function(){
-		const siteInfo = this.detectSite();
-		if (siteInfo.ripper){
-			this.scrapedInfo = siteInfo.ripper();
-			this.copyMeta();
+	MmsConstructor.prototype.displayMeta = function() {
+		const output = this.rip();
+		if (output && output !== ''){
+			if (this.injected){
+				this.uiElem.style.display = 'block';
+			}
+			else {
+				this.uiElem = document.createElement('div');
+				this.uiElem.innerHTML = _uiHtml;
+				document.body.appendChild(this.uiElem);
+				this.attachListeners();
+				this.injected = true;
+			}
+			/** @type {HTMLTextAreaElement} */
+			const textArea = this.uiElem.querySelector('#mmsTextOut');
+			// @ts-ignore
+			textArea.value = output;
 		}
 		else {
-			console.warn('Could not detect site, or no built ripper');
+			alert('Could not find music meta on page!');
+		}
+	}
+	MmsConstructor.prototype.attachListeners = function() {
+		document.querySelector(`.${_masterClass} #mmsTextOut`).addEventListener('click', (evt)=>{
+			// @ts-ignore
+			evt.target.select();
+		});
+		document.querySelector(`.${_masterClass} .mmsFTlbr span`).addEventListener('click', (evt)=>{
+			this.hideMeta();
+		});
+	}
+	MmsConstructor.prototype.hideMeta = function() {
+		if (this.uiElem){
+			this.uiElem.style.display = 'none';
 		}
 	}
 	MmsConstructor.prototype.copyMeta = function() {
-		let valueToCopy = this.prefersJson ? this.scrapedInfo : MmsConstructor.metaArrToTsvString(this.scrapedInfo);
-		// @ts-ignore
-		if (typeof(window.copy)==='function'){
-			// @ts-ignore
-			window.copy(valueToCopy);
+		_copyString(this.rip());
+	}
+	MmsConstructor.prototype.ripRaw = function() {
+		const siteInfo = this.detectSite();
+		if (siteInfo.ripper){
+			this.scrapedInfo = siteInfo.ripper();
+			const output = this.prefersJson ? this.scrapedInfo : MmsConstructor.metaArrToTsvString(this.scrapedInfo);
+			return output;
 		}
 		else {
-			console.warn(`copy() is not available. Outputting to console instead:`);
-			console.log(valueToCopy);
+			console.warn('Could not detect site, or no built ripper');
+			return '';
 		}
+	}
+	MmsConstructor.prototype.rip = function(){
+		const strOrJsonOut = this.ripRaw();
+		let output = strOrJsonOut;
+		if (typeof(strOrJsonOut)==='object'){
+			output = JSON.stringify(strOrJsonOut,null,4);
+		}
+		return output;
 	}
 
 	/**
@@ -257,5 +342,7 @@ const MusicMetaScraper = (function(){
 	return MmsConstructor;
 })();
 
-var scraper = new MusicMetaScraper();
-scraper.rip();
+// @ts-ignore
+window.musicMetaScraper = new MusicMetaScraper();
+// @ts-ignore
+window.musicMetaScraper.displayMeta();
