@@ -17,3 +17,6 @@ Right now, only:
  - Bing search results
 
 This repo was mainly created as a way to consolidate the code from two separate bookmarklets I had to use scrape those sources separately.
+
+## Short write-up
+[https://joshuatz.com/projects/web-stuff/music-meta-dom-scraper/](https://joshuatz.com/projects/web-stuff/music-meta-dom-scraper/)
