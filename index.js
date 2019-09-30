@@ -68,7 +68,7 @@ const MusicMetaScraper = (function(){
 	</style>
 	`;
 	/**
-	 * Get a empty song object
+	 * Get an empty song object
 	 * @returns {SongMeta}
 	 */
 	const _dummySong = function(){
@@ -81,8 +81,9 @@ const MusicMetaScraper = (function(){
 		}
 	}
 	/**
-	 * 
-	 * @param {Element} element 
+	 * Grab inner text from an element. Mainly a wrapper around .innerText to ignore TS error
+	 * @param {Element} element - The HTML element to grab text from
+	 * @param {boolean} [OPT_trim] - Optional: Should the grabbed text be .trim()'ed?
 	 */
 	const _getInnerText = function(element, OPT_trim){
 		const useTrim = typeof(OPT_trim)==='boolean' ? OPT_trim : true;
@@ -100,6 +101,10 @@ const MusicMetaScraper = (function(){
 		}
 		return value;
 	}
+	/**
+	 * Copies string to clipboard if copy() is available, else output to console
+	 * @param {string} strToCopy - String to copy to output
+	 */
 	const _copyString = function(strToCopy) {
 		// @ts-ignore
 		if (typeof(window.copy)==='function'){
@@ -111,6 +116,7 @@ const MusicMetaScraper = (function(){
 			console.log(strToCopy);
 		}
 	}
+	// Ripper method per site
 	const _rippers = {
 		bing: function(){
 			/** @type {SongCollection} */
@@ -196,6 +202,10 @@ const MusicMetaScraper = (function(){
 			return result;
 		}
 	}
+	/**
+	 * CONSTRUCTOR function
+	 * @param {boolean} preferJson - Whether, for various methods, JSON output is preferred over TSV
+	 */
 	function MmsConstructor(preferJson) {
 		/** @type {SongCollection} */
 		this.scrapedInfo = [];
@@ -224,6 +234,9 @@ const MusicMetaScraper = (function(){
 		}
 		return siteInfo;
 	}
+	/**
+	 * Display the scraped meta info in an actual UI on the screen, instead of the console
+	 */
 	MmsConstructor.prototype.displayMeta = function() {
 		const output = this.rip();
 		if (output && output !== ''){
@@ -246,6 +259,9 @@ const MusicMetaScraper = (function(){
 			alert('Could not find music meta on page!');
 		}
 	}
+	/**
+	 * Internal use: attach event listeners to constructed UI
+	 */
 	MmsConstructor.prototype.attachListeners = function() {
 		document.querySelector(`.${_masterClass} #mmsTextOut`).addEventListener('click', (evt)=>{
 			// @ts-ignore
@@ -255,6 +271,9 @@ const MusicMetaScraper = (function(){
 			this.hideMeta();
 		});
 	}
+	/**
+	 * Hide the meta UI
+	 */
 	MmsConstructor.prototype.hideMeta = function() {
 		if (this.uiElem){
 			this.uiElem.style.display = 'none';
@@ -263,6 +282,10 @@ const MusicMetaScraper = (function(){
 	MmsConstructor.prototype.copyMeta = function() {
 		_copyString(this.rip());
 	}
+	/**
+	 * Rip the meta info from the site, and get raw (JSON or string)
+	 * @param {boolean} [OPT_preferJson] - Should JSON output be preferred over TSV/String
+	 */
 	MmsConstructor.prototype.ripRaw = function(OPT_preferJson) {
 		const siteInfo = this.detectSite();
 		if (siteInfo.ripper){
@@ -276,13 +299,17 @@ const MusicMetaScraper = (function(){
 			return '';
 		}
 	}
+	/**
+	 * Rip meta *AS STRING*
+	 * @returns {string} meta info
+	 */
 	MmsConstructor.prototype.rip = function(){
 		const strOrJsonOut = this.ripRaw();
 		let output = strOrJsonOut;
 		if (typeof(strOrJsonOut)==='object'){
 			output = JSON.stringify(strOrJsonOut,null,4);
 		}
-		return output;
+		return output.toString();
 	}
 
 	/**
