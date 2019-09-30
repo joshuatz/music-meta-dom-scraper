@@ -36,9 +36,13 @@ const MusicMetaScraper = (function(){
 		height: 80%;
 		top: 10%;
 		left: 10%;
+		z-index: 9999;
+		border: 1px solid white;
+		border-top-left-radius: 10px;
+		border-top-right-radius: 10px;
 	}
 	.${_masterClass} .mmsFTlbr {
-		width: 100%;
+		width: calc(100% - 20px);
 		background-color: black;
 		color: white;
 		padding: 10px;
@@ -52,7 +56,7 @@ const MusicMetaScraper = (function(){
 		cursor: pointer;
 	}
 	.${_masterClass} .mmsFContent {
-		width: 100%;
+		width: calc(100% - 22px);
 		height: calc(100% - 40px);
 		padding: 0px 14px 12px 7px;
 		background-color: black;
@@ -80,18 +84,21 @@ const MusicMetaScraper = (function(){
 	 * 
 	 * @param {Element} element 
 	 */
-	const _getInnerText = function(element){
+	const _getInnerText = function(element, OPT_trim){
+		const useTrim = typeof(OPT_trim)==='boolean' ? OPT_trim : true;
+		let value = '';
 		// @ts-ignore
 		if (typeof(element.innerText)==='string'){
 			// @ts-ignore
-			return element.innerText;
+			value = element.innerText;
 		}
 		else if (typeof(element.nodeValue)==='string') {
-			return element.nodeValue.trim();
+			value = element.nodeValue;
 		}
-		else {
-			return '';
+		if (useTrim){
+			return value.trim();
 		}
+		return value;
 	}
 	const _copyString = function(strToCopy) {
 		// @ts-ignore
@@ -256,11 +263,12 @@ const MusicMetaScraper = (function(){
 	MmsConstructor.prototype.copyMeta = function() {
 		_copyString(this.rip());
 	}
-	MmsConstructor.prototype.ripRaw = function() {
+	MmsConstructor.prototype.ripRaw = function(OPT_preferJson) {
 		const siteInfo = this.detectSite();
 		if (siteInfo.ripper){
 			this.scrapedInfo = siteInfo.ripper();
-			const output = this.prefersJson ? this.scrapedInfo : MmsConstructor.metaArrToTsvString(this.scrapedInfo);
+			const preferJson = typeof(OPT_preferJson)==='boolean' ? OPT_preferJson : this.prefersJson;
+			const output = preferJson ? this.scrapedInfo : MmsConstructor.metaArrToTsvString(this.scrapedInfo);
 			return output;
 		}
 		else {
