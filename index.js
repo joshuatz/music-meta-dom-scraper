@@ -88,13 +88,15 @@ const MusicMetaScraper = (function(){
 	const _getInnerText = function(element, OPT_trim){
 		const useTrim = typeof(OPT_trim)==='boolean' ? OPT_trim : true;
 		let value = '';
-		// @ts-ignore
-		if (typeof(element.innerText)==='string'){
+		if (!!element) {
 			// @ts-ignore
-			value = element.innerText;
-		}
-		else if (typeof(element.nodeValue)==='string') {
-			value = element.nodeValue;
+			if (typeof (element.innerText) === 'string'){
+				// @ts-ignore
+				value = element.innerText;
+			}
+			else if (typeof (element.nodeValue) === 'string') {
+				value = element.nodeValue;
+			}
 		}
 		if (useTrim){
 			return value.trim();
