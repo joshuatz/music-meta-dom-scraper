@@ -12,7 +12,7 @@
  * @property {string} artistName
  * @property {string} [durationLength]
  * @property {Array<string>} [genres]
- * @property {string} primaryGenre
+ * @property {string} [primaryGenre]
  * @property {number} [releaseYear]
  */
 
@@ -118,7 +118,18 @@ const MusicMetaScraper = (function(){
 			console.log(strToCopy);
 		}
 	}
+
+
 	// Ripper method per site
+	/**
+	 * @typedef {function(): SongCollection} RipperFuction
+	 */
+	/**
+	 * @typedef {Object<string, RipperFuction>} RippersCollection
+	 */
+	/**
+	 * @type {RippersCollection}
+	 */
 	const _rippers = {
 		bing: function(){
 			/** @type {SongCollection} */
@@ -142,8 +153,7 @@ const MusicMetaScraper = (function(){
 					let songInfo = {
 						albumTitle: albumTitle,
 						artistName: artistName,
-						songTitle: _getInnerText(songElem.querySelector('.tit')),
-						primaryGenre: ''
+						songTitle: _getInnerText(songElem.querySelector('.tit'))
 					};
 					if (songElem.querySelector('.b_floatR')){
 						songInfo.durationLength = _getInnerText(songElem.querySelector('.b_floatR'));
@@ -202,6 +212,27 @@ const MusicMetaScraper = (function(){
 				result.push(songInfo);
 			}
 			return result;
+		},
+		google: function() {
+			/** @type {SongCollection} */
+			let result = [];
+			const albumTitle = _getInnerText(document.querySelector('[data-attrid*=" album"]')).replace(/^Album:\s/,'');
+			const artistName = _getInnerText(document.querySelector('[data-attrid*=":artist"]')).replace(/^Artists?:\s/,'');
+			// Song title is not directly exposed... has to be regex matched unfortunately, from '{artist} - {title} - YouTube' string
+			const ytLinkText = _getInnerText(document.querySelector('.kp-wholepage a[href*="youtube"] h3 span'));
+			const songTitle = ytLinkText.match(/[^-]+ - (.*) - YouTube$/)[1];
+			/** @type {SongMeta} */
+			let songInfo = {
+				songTitle,
+				artistName,
+				albumTitle
+			};
+			const releaseYearStr = _getInnerText(document.querySelector('[data-attrid*=":release"]')).replace(/^Released:\s/, '');
+			if (!!releaseYearStr) {
+				songInfo.releaseYear = parseInt(releaseYearStr, 10);
+			}
+			result.push(songInfo);
+			return result;
 		}
 	}
 	/**
@@ -233,6 +264,10 @@ const MusicMetaScraper = (function(){
 		else if (/^(?:www\.){0,1}allmusic\.com/.test(window.location.hostname)){
 			siteInfo.ripper = _rippers.allMusic;
 			siteInfo.name = 'AllMusic';
+		}
+		else if (/^(?:www\.){0,1}google\.com/.test(window.location.hostname)){
+			siteInfo.ripper = _rippers.google;
+			siteInfo.name = 'Google';
 		}
 		return siteInfo;
 	}
@@ -292,6 +327,7 @@ const MusicMetaScraper = (function(){
 		const siteInfo = this.detectSite();
 		if (siteInfo.ripper){
 			this.scrapedInfo = siteInfo.ripper();
+			console.log(this.scrapedInfo);
 			const preferJson = typeof(OPT_preferJson)==='boolean' ? OPT_preferJson : this.prefersJson;
 			const output = preferJson ? this.scrapedInfo : MmsConstructor.metaArrToTsvString(this.scrapedInfo);
 			return output;

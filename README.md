@@ -15,6 +15,7 @@ This does not use an API or headless browser; you have to navigate to the source
 Right now, only:
  - AllMusic
  - Bing search results
+ - Google search result (usually)
 
 This repo was mainly created as a way to consolidate the code from two separate bookmarklets I had to use scrape those sources separately.
 
