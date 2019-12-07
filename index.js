@@ -219,8 +219,19 @@ const MusicMetaScraper = (function(){
 			const albumTitle = _getInnerText(document.querySelector('[data-attrid*=" album"]')).replace(/^Album:\s/,'');
 			const artistName = _getInnerText(document.querySelector('[data-attrid*=":artist"]')).replace(/^Artists?:\s/,'');
 			// Song title is not directly exposed... has to be regex matched unfortunately, from '{artist} - {title} - YouTube' string
+			let songTitle = '';
 			const ytLinkText = _getInnerText(document.querySelector('.kp-wholepage a[href*="youtube"] h3 span'));
-			const songTitle = ytLinkText.match(/[^-]+ - (.*) - YouTube$/)[1];
+			const ytTitleMatch = ytLinkText.match(/[^-]+ - (.*) - YouTube$/);
+			if (ytTitleMatch) {
+				songTitle = ytTitleMatch[1];
+			}
+			else {
+				// Try to extract title via img alt text
+				const image = document.querySelector('.kp-wholepage a[href*="youtube"] img[alt]');
+				if (image) {
+					songTitle = (image.getAttribute('alt').match(/[^-]+ - (.*)/)[1] || '')
+				}
+			}
 			/** @type {SongMeta} */
 			let songInfo = {
 				songTitle,
@@ -230,6 +241,12 @@ const MusicMetaScraper = (function(){
 			const releaseYearStr = _getInnerText(document.querySelector('[data-attrid*=":release"]')).replace(/^Released:\s/, '');
 			if (!!releaseYearStr) {
 				songInfo.releaseYear = parseInt(releaseYearStr, 10);
+			}
+			const genreStr = _getInnerText(document.querySelector('[data-attrid*="_genre"]')).replace(/^Genres?:\s/, '');
+			if (!!genreStr) {
+				const genres = genreStr.split(',').map(g => g.trim());
+				songInfo.primaryGenre = genres[0];
+				songInfo.genres = genres;
 			}
 			result.push(songInfo);
 			return result;
