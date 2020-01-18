@@ -220,7 +220,7 @@ const MusicMetaScraper = (function(){
 			const artistName = _getInnerText(document.querySelector('[data-attrid*=":artist"]')).replace(/^Artists?:\s/,'');
 			// Song title is not directly exposed... has to be regex matched unfortunately, from '{artist} - {title} - YouTube' string
 			let songTitle = '';
-			const ytLinkText = _getInnerText(document.querySelector('.kp-wholepage a[href*="youtube"] h3 span'));
+			const ytLinkText = _getInnerText(document.querySelector('.kp-wholepage a[href*="youtube"] h3 span, [data-ved] a[href*="youtube"] h3'));
 			const ytTitleMatch = ytLinkText.match(/[^-]+ - (.*) - YouTube$/);
 			if (ytTitleMatch) {
 				songTitle = ytTitleMatch[1];
@@ -391,7 +391,7 @@ const MusicMetaScraper = (function(){
 		let songInfo = _dummySong();
 		const advancedDetails = songArea.querySelectorAll("ul[class*=vList]")[0].querySelectorAll("ul > li");
 		for (let x=0; x<advancedDetails.length; x++){
-			const currentLabel = (advancedDetails[x].querySelector("span").innerText).replace(/:/,"");
+			const currentLabel = (advancedDetails[x].querySelector("div a:first-child").innerText).replace(/:/,"");
 			const currentValue = /^[^:]+:(.*)$/.exec(_getInnerText(advancedDetails[x]))[1].trim();
 			if (/[Aa]lbum/.test(currentLabel)==true){
 				songInfo.albumTitle = currentValue;
