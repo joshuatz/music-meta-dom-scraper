@@ -14,6 +14,7 @@ This does not use an API or headless browser; you have to navigate to the source
 ## Supported sites
 Right now, only:
  - AllMusic
+ - Discogs
  - Bing search results
  - Google search result (usually)
 

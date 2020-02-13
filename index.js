@@ -201,9 +201,9 @@ const MusicMetaScraper = (function(){
 				let songInfo = {
 					songTitle: _getInnerText(currTrack.querySelector('.title')),
 					artistName: _getInnerText(currTrack.querySelector('.composer')),
-					albumTitle: albumTitle,
-					primaryGenre: primaryGenre,
-					genres: genres,
+					albumTitle,
+					primaryGenre,
+					genres,
 					durationLength: _getInnerText(currTrack.querySelector('td.time'))
 				};
 				if (releaseYear){
@@ -250,6 +250,40 @@ const MusicMetaScraper = (function(){
 			}
 			result.push(songInfo);
 			return result;
+		},
+		discogs: function() {
+			/** @type {SongCollection} */
+			let result = [];
+			const releaseSchemaElem = document.querySelector('script[type="application/ld+json"]#release_schema');
+			if (releaseSchemaElem) {
+				const releaseSchema = JSON.parse(_getInnerText(releaseSchemaElem));
+				const albumTitle = releaseSchema.name;
+				const genres = releaseSchema.genre || [];
+				let primaryGenre = undefined;
+				let artistName = '';
+				if (genres.length) {
+					primaryGenre = genres[0];
+				}
+				if (releaseSchema.releaseOf && releaseSchema.releaseOf.byArtist) {
+					const artistMetas = releaseSchema.releaseOf.byArtist;
+					artistName = artistMetas.map(meta => meta.name).join(', ');
+				}
+				const releaseYear = releaseSchema.datePublished;
+				for (const track of releaseSchema.tracks) {
+					const songTitle = track.name;
+					/** @type {SongMeta} */
+					let songInfo = {
+						albumTitle,
+						releaseYear,
+						genres,
+						primaryGenre,
+						songTitle,
+						artistName
+					}
+					result.push(songInfo);
+				}
+			}
+			return result;
 		}
 	}
 	/**
@@ -285,6 +319,10 @@ const MusicMetaScraper = (function(){
 		else if (/^(?:www\.){0,1}google\.com/.test(window.location.hostname)){
 			siteInfo.ripper = _rippers.google;
 			siteInfo.name = 'Google';
+		}
+		else if (/^(?:www\.){0,1}discogs\.com/.test(window.location.hostname)) {
+			siteInfo.ripper = _rippers.discogs;
+			siteInfo.name = 'Discogs';
 		}
 		return siteInfo;
 	}
