@@ -31,7 +31,7 @@ const MusicMetaScraper = (function(){
 	</div>
 	<style>
 	.${_masterClass}.fullscreenWrapper {
-		position: absolute;
+		position: fixed;
 		width: 80%;
 		height: 80%;
 		top: 10%;
@@ -57,13 +57,16 @@ const MusicMetaScraper = (function(){
 	}
 	.${_masterClass} .mmsFContent {
 		width: calc(100% - 22px);
-		height: calc(100% - 40px);
 		padding: 0px 14px 12px 7px;
 		background-color: black;
 	}
 	.${_masterClass} #mmsTextOut {
-		width: 100%;
+		width: 100% !important;
 		height: 100%;
+		min-height: 400px;
+		-webkit-box-sizing: border-box;
+		-moz-box-sizing: border-box;
+		box-sizing: border-box;
 	}
 	</style>
 	`;
@@ -254,7 +257,7 @@ const MusicMetaScraper = (function(){
 		discogs: function() {
 			/** @type {SongCollection} */
 			let result = [];
-			const releaseSchemaElem = document.querySelector('script[type="application/ld+json"]#release_schema');
+			const releaseSchemaElem = document.querySelector('script[type="application/ld+json"]#release_schema, script[type="application/ld+json"]#master_schema');
 			if (releaseSchemaElem) {
 				const releaseSchema = JSON.parse(_getInnerText(releaseSchemaElem));
 				const albumTitle = releaseSchema.name;
@@ -361,6 +364,13 @@ const MusicMetaScraper = (function(){
 		});
 		document.querySelector(`.${_masterClass} .mmsFTlbr span`).addEventListener('click', (evt)=>{
 			this.hideMeta();
+		});
+		document.addEventListener('click', evt => {
+			// Hide popup if click was outside
+			// @ts-ignore
+			if ((evt.target).matches(`.${_masterClass} *`) === false) {
+				this.hideMeta();
+			}
 		});
 	}
 	/**
