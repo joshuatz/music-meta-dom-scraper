@@ -17,6 +17,7 @@ Right now, only:
  - Discogs
  - Bing search results
  - Google search result (usually)
+ - Spotify (most pages)
 
 This repo was mainly created as a way to consolidate the code from two separate bookmarklets I had to use scrape those sources separately.
 

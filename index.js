@@ -5,8 +5,11 @@
 // @author Joshua Tzucker
 // ==/Bookmarklet==
 
+/** @type {Window & Object} */
+const windowWAny = window;
+
 /**
- * @typedef {Object<string, any>} SongMeta
+ * @typedef {Object} SongMeta
  * @property {string} songTitle
  * @property {string} albumTitle
  * @property {string} artistName
@@ -33,13 +36,16 @@ const MusicMetaScraper = (function(){
 	.${_masterClass}.fullscreenWrapper {
 		position: fixed;
 		width: 80%;
-		height: 80%;
 		top: 10%;
 		left: 10%;
 		z-index: 9999;
 		border: 1px solid white;
 		border-top-left-radius: 10px;
 		border-top-right-radius: 10px;
+		padding: 1px;
+	}
+	.${_masterClass}.fullscreenWrapper > * {
+		box-sizing: unset;
 	}
 	.${_masterClass} .mmsFTlbr {
 		width: calc(100% - 20px);
@@ -287,6 +293,70 @@ const MusicMetaScraper = (function(){
 				}
 			}
 			return result;
+		},
+		spotify: function() {
+			const pathName = document.location.pathname;
+			let shouldExtractActivePlayingOnly = false;
+			const activeRowElem = document.querySelector('.tracklist-row--active');
+			let globalAlbumTitle = '';
+			let globalReleaseYear;
+
+			if (document.location.pathname.startsWith('/album/')) {
+				const albumTitleElem = document.querySelector('.TrackListHeader .mo-info-name');
+				const additionalInfoElem = document.querySelector('.TrackListHeader p[class*="additional-info"]');
+				if (albumTitleElem) {
+					globalAlbumTitle = albumTitleElem.getAttribute('title');
+				}
+				if (additionalInfoElem) {
+					const infoText = _getInnerText(additionalInfoElem);
+					const yearMatch = /\d{4}/.exec(infoText);
+					if (yearMatch) {
+						globalReleaseYear = parseInt(yearMatch[0], 10);
+					}
+				}
+			}
+
+			/** @param {HTMLDivElement | HTMLLIElement} row */
+			const parseDomRow = (row) => {
+				const albumTitle = _getInnerText(row.querySelector('a[class*="album-name"]')) || globalAlbumTitle;
+				const durationElem = row.querySelector('.tracklist-duration span');
+				/** @type {SongMeta} */
+				let songInfo = {
+					songTitle: _getInnerText(row.querySelector('.tracklist-name')),
+					artistName: _getInnerText(row.querySelector('a[class*="artist-name"]')),
+					albumTitle
+				};
+
+				if (durationElem) {
+					songInfo.durationLength = _getInnerText(durationElem);
+				}
+				if (typeof globalReleaseYear === 'number') {
+					songInfo.releaseYear = globalReleaseYear;
+				}
+
+				return songInfo;
+			}
+
+			if (pathName.startsWith('/collection/tracks') || pathName.startsWith('/playlist/')) {
+				shouldExtractActivePlayingOnly = true;
+			}
+			
+			/** @type {SongCollection} */
+			let result = [];
+
+			if (shouldExtractActivePlayingOnly && activeRowElem) {
+				// @ts-ignore
+				result.push(parseDomRow(activeRowElem))
+			} else {
+				/** @type {NodeListOf<HTMLLIElement>} */
+				// Don't grab recommended section
+				const allTrackRows = document.querySelectorAll('.tracklist-container:not([class*="Recommended"]) ol.tracklist li.tracklist-row')
+				allTrackRows.forEach((trackRow) => {
+					result.push(parseDomRow(trackRow));
+				});
+			}
+
+			return result;
 		}
 	}
 	/**
@@ -326,6 +396,10 @@ const MusicMetaScraper = (function(){
 		else if (/^(?:www\.){0,1}discogs\.com/.test(window.location.hostname)) {
 			siteInfo.ripper = _rippers.discogs;
 			siteInfo.name = 'Discogs';
+		}
+		else if (window.location.hostname === 'open.spotify.com') {
+			siteInfo.ripper = _rippers.spotify;
+			siteInfo.name = 'Spotify';
 		}
 		return siteInfo;
 	}
