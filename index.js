@@ -1,3 +1,4 @@
+/// <reference types="spotify-api" />
 // @ts-check
 
 // ==Bookmarklet==
@@ -23,7 +24,13 @@ const windowWAny = window;
  * @typedef {SongMeta[]} SongCollection
  */
 
+/**
+ * @typedef {SpotifyApi.MultipleTracksResponse} SpotifyTracks
+ * @typedef {SpotifyApi.TrackObjectFull} SpotifyTrack
+ */
+
 const MusicMetaScraper = (function(){
+	let _spotifyToken;
 	const _masterClass = 'musicMetaScraper';
 	const _uiHtml = `
 	<div class="${_masterClass} fullscreenWrapper">
@@ -131,7 +138,9 @@ const MusicMetaScraper = (function(){
 
 	// Ripper method per site
 	/**
-	 * @typedef {function(): SongCollection} RipperFuction
+	 * @typedef {() => Promise<SongCollection>} RipperPromiseFunc
+	 * @typedef {() => SongCollection} RipperFunc
+	 * @typedef {RipperPromiseFunc | RipperFunc} RipperFuction
 	 */
 	/**
 	 * @typedef {Object<string, RipperFuction>} RippersCollection
@@ -294,7 +303,7 @@ const MusicMetaScraper = (function(){
 			}
 			return result;
 		},
-		spotify: function() {
+		spotify: async function() {
 			const pathName = document.location.pathname;
 			let shouldExtractActivePlayingOnly = false;
 			const activeRowElem = document.querySelector('.tracklist-row--active');
@@ -340,6 +349,8 @@ const MusicMetaScraper = (function(){
 			if (pathName.startsWith('/collection/tracks') || pathName.startsWith('/playlist/')) {
 				shouldExtractActivePlayingOnly = true;
 			}
+
+			// === Actual Extraction ===
 			
 			/** @type {SongCollection} */
 			let result = [];
@@ -354,6 +365,18 @@ const MusicMetaScraper = (function(){
 				allTrackRows.forEach((trackRow) => {
 					result.push(parseDomRow(trackRow));
 				});
+			}
+
+			if (!result.length) {
+				// Likely scenario is playing off search results, or something similar that messes with the active track selectors.
+				// FALLBACK to mini-player extraction
+				/** @type {HTMLAnchorElement | null} */
+				const miniPlayerTrackLinkElem = document.querySelector('.NavBarFooter a[href*="track/"]');
+				if (miniPlayerTrackLinkElem) {
+					const miniPlayerTrackId = miniPlayerTrackLinkElem.href.match(/track\/([0-9a-z]+)/i)[1];
+					const songMeta = await (new MmsConstructor(true).spotify().getTrackById(miniPlayerTrackId))
+					result.push(songMeta);
+				}
 			}
 
 			return result;
@@ -373,6 +396,13 @@ const MusicMetaScraper = (function(){
 	/**
 	 * Public Methods
 	 */
+
+	// Get cookie
+	MmsConstructor.prototype.getCookie = function(cookieName){
+		const v = document.cookie.match('(^|;) ?' + cookieName + '=([^;]*)(;|$)');
+		return v ? v[2] : null;
+	}
+
 	/**
 	 * Detect the type of site
 	 */
@@ -406,8 +436,8 @@ const MusicMetaScraper = (function(){
 	/**
 	 * Display the scraped meta info in an actual UI on the screen, instead of the console
 	 */
-	MmsConstructor.prototype.displayMeta = function() {
-		const output = this.rip();
+	MmsConstructor.prototype.displayMeta = async function() {
+		const output = await this.rip();
 		if (output && output !== ''){
 			if (this.injected){
 				this.uiElem.style.display = 'block';
@@ -455,17 +485,17 @@ const MusicMetaScraper = (function(){
 			this.uiElem.style.display = 'none';
 		}
 	}
-	MmsConstructor.prototype.copyMeta = function() {
-		_copyString(this.rip());
+	MmsConstructor.prototype.copyMeta = async function() {
+		_copyString(await this.rip());
 	}
 	/**
 	 * Rip the meta info from the site, and get raw (JSON or string)
 	 * @param {boolean} [OPT_preferJson] - Should JSON output be preferred over TSV/String
 	 */
-	MmsConstructor.prototype.ripRaw = function(OPT_preferJson) {
+	MmsConstructor.prototype.ripRaw = async function(OPT_preferJson) {
 		const siteInfo = this.detectSite();
 		if (siteInfo.ripper){
-			this.scrapedInfo = siteInfo.ripper();
+			this.scrapedInfo = await siteInfo.ripper();
 			console.log(this.scrapedInfo);
 			const preferJson = typeof(OPT_preferJson)==='boolean' ? OPT_preferJson : this.prefersJson;
 			const output = preferJson ? this.scrapedInfo : MmsConstructor.metaArrToTsvString(this.scrapedInfo);
@@ -478,15 +508,106 @@ const MusicMetaScraper = (function(){
 	}
 	/**
 	 * Rip meta *AS STRING*
-	 * @returns {string} meta info
+	 * @returns {Promise<string>} meta info
 	 */
-	MmsConstructor.prototype.rip = function(){
-		const strOrJsonOut = this.ripRaw();
+	MmsConstructor.prototype.rip = async function(){
+		const strOrJsonOut = await this.ripRaw();
 		let output = strOrJsonOut;
 		if (typeof(strOrJsonOut)==='object'){
 			output = JSON.stringify(strOrJsonOut,null,4);
 		}
 		return output.toString();
+	}
+
+	/**
+	 * Set of Spotify utility methods
+	 */
+	MmsConstructor.prototype.spotify = function(token){
+		/** @type {RequestInit} */
+		const sameOriginMode = {
+			mode: 'same-origin'
+		};
+
+		const init = async () => {
+			if (!_spotifyToken) {
+				_spotifyToken = await getToken();
+			}
+
+			if (!_spotifyToken) {
+				throw new Error('Could not get Spotify token!');
+			}
+
+			return true;
+		}
+		/**
+		 * 
+		 * @param {string} token 
+		 * @param {RequestInit} [options]
+		 * @returns {RequestInit}
+		 */
+		const getAuthFetchOptions = (token, options = {}) => {
+			return {
+				...options,
+				headers: {
+					'authorization': `Bearer ${token}`
+				}
+			}
+		}
+		const getToken = async (refresh) => {
+			if (_spotifyToken && !refresh) {
+				return _spotifyToken;
+			};
+
+			const res = await fetch('https://open.spotify.com/get_access_token?reason=transport&productType=web_player', sameOriginMode);
+			/** @type {string} */
+			const token = (await res.json()).accessToken;
+			return token;
+		}
+		/**
+		 * Get track details by ID (e.g. '4uZkg6aWtrUGW5mcsjoTgU')
+		 * @param {string} trackId
+		 * @returns {Promise<SongMeta>}
+		 */
+		const getTrackById = async (trackId) => {
+			const tracks = await getTracksById([trackId]);
+			return tracks[0];
+		}
+		/**
+		 * Get multiple tracks by IDs
+		 * @param {string[]} trackIds
+		 * @returns {Promise<SongMeta[]>}
+		 */
+		const getTracksById = async (trackIds) => {
+			await init();
+			const endpoint = `https://api.spotify.com/v1/tracks?ids=${trackIds.join(',')}&market=from_token`;
+			const resJson = await (await fetch(endpoint, getAuthFetchOptions(_spotifyToken))).json();
+			return resJson.tracks.map(track => spotifyToMms(track));
+		}
+		/**
+		 * Convert Spotify JSON into Mms format
+		 * @param {SpotifyTrack} sTrack
+		 * @returns {SongMeta}
+		 */
+		const spotifyToMms = (sTrack) => {
+			/** @type {SongMeta} */
+			const songMeta = {
+				albumTitle: sTrack.album.name,
+				artistName: sTrack.artists.map(artist => artist.name).join(', '),
+				songTitle: sTrack.name,
+				durationLength: `${(sTrack.duration_ms / 1000 / 60).toFixed(2)} minutes`
+			}
+			if (sTrack.album.release_date && sTrack.album.release_date.match(/\d{4}/)) {
+				songMeta.releaseYear = parseInt(sTrack.album.release_date.match(/\d{4}/)[0], 10);
+			}
+
+			return songMeta;
+		}
+		return {
+			getToken,
+			getTrackById,
+			getTracksById,
+			init
+		}
 	}
 
 	/**
