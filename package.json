@@ -1,6 +1,6 @@
 {
   "name": "music-meta-scraper",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "",
   "main": "music-meta-scraper.js",
   "scripts": {
