@@ -1,5 +1,3 @@
-// @ts-check
-
 const fs = require('fs');
 const BOOKMARKLET_TITLE = 'Music-Meta-DOM-Scraper'
 const codeInFile = `${__dirname}/index.build.js`;

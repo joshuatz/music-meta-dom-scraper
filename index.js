@@ -1,6 +1,3 @@
-/// <reference types="spotify-api" />
-// @ts-check
-
 // ==Bookmarklet==
 // @name Music-Meta-DOM-Scraper
 // @author Joshua Tzucker
