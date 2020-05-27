@@ -3,7 +3,7 @@
 ## What is this?
 Very basic JS Bookmarklet to pull Song / Album Discography information from various websites when you on a webpage that has song metadata, and lets you copy and paste into a spreadsheet or JSON file. 
 
-Useful for those obsessed over cataloging thier music and tracking it by hand (probably very few people).
+Useful for those obsessed over cataloging their music and tracking it by hand (probably very few people).
 
 ## Demo
 ![Demo GIF](./demo.gif)
