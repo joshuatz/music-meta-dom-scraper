@@ -5,17 +5,17 @@
   "main": "music-meta-scraper.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "prep": "parcel build index.js --out-file index.build.js --out-dir . --target browser --no-source-maps --experimental-scope-hoisting",
-    "build": "npm run prep && node copy-bookmarklet-comment.js && bookmarklet --demo index.build.js bookmarklet-install.html"
+    "build": "parcel build index.js --out-file index.build.js --out-dir . --target browser --no-source-maps --experimental-scope-hoisting && node bookmarklet-creator.js"
   },
   "keywords": [],
   "author": "Joshua Tzucker",
   "license": "MIT",
-  "dependencies": {
-    "bookmarklet": "^1.0.4"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@types/spotify-api": "0.0.3",
     "parcel-bundler": "^1.12.4"
-  }
+  },
+  "browserslist": [
+    "last 2 Chrome version"
+  ]
 }
