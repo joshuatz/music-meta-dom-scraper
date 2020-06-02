@@ -368,7 +368,7 @@ const MusicMetaScraper = (function(){
 				// Likely scenario is playing off search results, or something similar that messes with the active track selectors.
 				// FALLBACK to mini-player extraction
 				/** @type {HTMLAnchorElement | null} */
-				const miniPlayerTrackLinkElem = document.querySelector('.NavBarFooter a[href*="track/"]');
+				const miniPlayerTrackLinkElem = document.querySelector('a[aria-label*="Now playing"][href*="track/"]');
 				if (miniPlayerTrackLinkElem) {
 					const miniPlayerTrackId = miniPlayerTrackLinkElem.href.match(/track\/([0-9a-z]+)/i)[1];
 					const songMeta = await (new MmsConstructor(true).spotify().getTrackById(miniPlayerTrackId))
