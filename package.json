@@ -1,8 +1,8 @@
 {
   "name": "music-meta-scraper",
-  "version": "1.4.0",
-  "description": "",
-  "main": "music-meta-scraper.js",
+  "version": "1.5.0",
+  "description": "Very basic JS Bookmarklet to pull Song / Album Discography information from various websites.",
+  "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "parcel build index.js --out-file index.build.js --out-dir . --target browser --no-source-maps --experimental-scope-hoisting && node bookmarklet-creator.js"

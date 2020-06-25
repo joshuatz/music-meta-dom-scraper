@@ -11,6 +11,7 @@ const windowWAny = window;
  * @property {string} songTitle
  * @property {string} albumTitle
  * @property {string} artistName
+ * @property {string} [composerName]
  * @property {string} [durationLength]
  * @property {Array<string>} [genres]
  * @property {string} [primaryGenre]
@@ -135,12 +136,13 @@ const MusicMetaScraper = (function(){
 
 	// Ripper method per site
 	/**
+	 * @typedef {'bing' | 'allMusic' | 'google' | 'discogs' | 'spotify'} RipperName
 	 * @typedef {() => Promise<SongCollection>} RipperPromiseFunc
 	 * @typedef {() => SongCollection} RipperFunc
 	 * @typedef {RipperPromiseFunc | RipperFunc} RipperFuction
 	 */
 	/**
-	 * @typedef {Object<string, RipperFuction>} RippersCollection
+	 * @typedef {Record<RipperName, RipperFuction>} RippersCollection
 	 */
 	/**
 	 * @type {RippersCollection}
@@ -212,15 +214,20 @@ const MusicMetaScraper = (function(){
 			const trackElems = document.querySelectorAll('tr.track');
 			for (let x=0; x<trackElems.length; x++){
 				const currTrack = trackElems[x];
+				const composerName = _getInnerText(currTrack.querySelector('.composer'));
+
 				/** @type {SongMeta} */
 				let songInfo = {
 					songTitle: _getInnerText(currTrack.querySelector('.title')),
-					artistName: _getInnerText(currTrack.querySelector('.composer')),
+					artistName: _getInnerText(currTrack.querySelector('.performer')),
 					albumTitle,
 					primaryGenre,
 					genres,
 					durationLength: _getInnerText(currTrack.querySelector('td.time'))
 				};
+				if (composerName) {
+					songInfo.composerName = composerName;
+				}
 				if (releaseYear){
 					songInfo.releaseYear = releaseYear;
 				}
@@ -312,6 +319,9 @@ const MusicMetaScraper = (function(){
 				const additionalInfoElem = document.querySelector('.TrackListHeader p[class*="additional-info"]');
 				if (albumTitleElem) {
 					globalAlbumTitle = albumTitleElem.getAttribute('title');
+				} else {
+					// Scrape from title
+					globalAlbumTitle = document.title.replace('Spotify – ','');
 				}
 				if (additionalInfoElem) {
 					const infoText = _getInnerText(additionalInfoElem);
@@ -519,6 +529,9 @@ const MusicMetaScraper = (function(){
 	/**
 	 * Set of Spotify utility methods
 	 */
+	/**
+	 * @param {string} [token] override spotify auth token
+	 */
 	MmsConstructor.prototype.spotify = function(token){
 		/** @type {RequestInit} */
 		const sameOriginMode = {
@@ -526,6 +539,10 @@ const MusicMetaScraper = (function(){
 		};
 
 		const init = async () => {
+			if (token && token.length) {
+				_spotifyToken = token;
+			}
+
 			if (!_spotifyToken) {
 				_spotifyToken = await getToken();
 			}
