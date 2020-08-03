@@ -29,13 +29,18 @@ const windowWAny = window;
 
 const MusicMetaScraper = (function(){
 	let _spotifyToken;
+	const _hiddenClass = 'mmsHidden';
 	const _masterClass = 'musicMetaScraper';
 	const _uiHtml = `
 	<div class="${_masterClass} fullscreenWrapper">
-		<div class="mmsFTlbr"><span>X</span></div>
+		<div class="mmsFTlbr">
+			<span class="mmsCpyBtn">📋</span>
+			<span class="mmsClsBtn">X</span>
+		</div>
 		<div class="mmsFContent">
 			<textarea id="mmsTextOut" readonly></textarea>
 		</div>
+		<textarea id="mmsTextHolder" class="${_hiddenClass}"></textarea>
 	</div>
 	<style>
 	.${_masterClass}.fullscreenWrapper {
@@ -79,6 +84,9 @@ const MusicMetaScraper = (function(){
 		-moz-box-sizing: border-box;
 		box-sizing: border-box;
 	}
+	.${_masterClass} .${_hiddenClass} {
+		display: none !important;
+	}
 	</style>
 	`;
 	/**
@@ -118,21 +126,43 @@ const MusicMetaScraper = (function(){
 		return value;
 	}
 	/**
-	 * Copies string to clipboard if copy() is available, else output to console
-	 * @param {string} strToCopy - String to copy to output
+	 * Copy text to clipboard
+	 * @param {string} text
+	 * @param {MouseEvent | Event} [event]
+	 * @returns {Promise<boolean>} success
 	 */
-	const _copyString = function(strToCopy) {
-		// @ts-ignore
-		if (typeof(window.copy)==='function'){
-			// @ts-ignore
-			window.copy(strToCopy);
+	const _copyCommand = async (text, event) => {
+		let success = false;
+
+		if (navigator.clipboard) {
+			try {
+				await navigator.clipboard.writeText(text);
+				success = true;
+			} catch (err) {
+				console.error('Failed to write to clipboard', err);
+			}
 		}
-		else {
-			console.warn(`copy() is not available. Outputting to console instead:`);
-			console.log(strToCopy);
+
+		if (!success) {
+			success = document.execCommand('copy');
 		}
+
+		return success;
+	};
+
+	const _clearSelection = () => {
+		window.getSelection().removeAllRanges();
 	}
 
+	/**
+	 * Async wrapper around setTimeout
+	 * @param {number} delay 
+	 */
+	const _delay = async (delay) => {
+		return new Promise((res) => {
+			setTimeout(res, delay);
+		});
+	}
 
 	// Ripper method per site
 	/**
@@ -441,41 +471,70 @@ const MusicMetaScraper = (function(){
 		return siteInfo;
 	}
 	/**
-	 * Display the scraped meta info in an actual UI on the screen, instead of the console
+	 * Ensure that all the HTML & CSS has been injected for the UI
 	 */
-	MmsConstructor.prototype.displayMeta = async function() {
-		const output = await this.rip();
+	MmsConstructor.prototype.ensureInjected = async function() {
+		if (!this.injected) {
+			this.uiElem = document.createElement('div');
+			this.uiElem.innerHTML = _uiHtml;
+			document.body.appendChild(this.uiElem);
+			this.attachListeners();
+			this.injected = true;
+		}
+	}
+	/**
+	 * Display the scraped meta info in an actual UI on the screen, instead of the console
+	 * @param {string} [meta] Meta to display, instead of ripping
+	 */
+	MmsConstructor.prototype.displayMeta = async function(meta) {
+		const output = (await this.rip() || meta)
 		if (output && output !== ''){
-			if (this.injected){
-				this.uiElem.style.display = 'block';
-			}
-			else {
-				this.uiElem = document.createElement('div');
-				this.uiElem.innerHTML = _uiHtml;
-				document.body.appendChild(this.uiElem);
-				this.attachListeners();
-				this.injected = true;
-			}
+			await this.ensureInjected();
+			this.uiElem.style.display = 'block';
 			/** @type {HTMLTextAreaElement} */
 			const textArea = this.uiElem.querySelector('#mmsTextOut');
-			// @ts-ignore
 			textArea.value = output;
+
+			await this.copyToClipboard(output);
 		}
 		else {
 			alert('Could not find music meta on page!');
 		}
 	}
 	/**
+	 * Copy to Clipboard via hidden textarea
+	 * @param {string} str 
+	 */
+	MmsConstructor.prototype.copyToClipboard = async function(str) {
+		await this.ensureInjected();
+		/** @type {HTMLTextAreaElement} */
+		const textArea = this.uiElem.querySelector('#mmsTextHolder');
+		const previousVal = textArea.value;
+		textArea.value = str;
+
+		// To copy to clipboard, need to select text *and* textarea must be visible
+		textArea.classList.remove(_hiddenClass);
+		textArea.select();
+		await _copyCommand(str);
+		_clearSelection();
+		textArea.value = previousVal;
+		textArea.classList.add(_hiddenClass);
+	}
+	/**
 	 * Internal use: attach event listeners to constructed UI
 	 */
 	MmsConstructor.prototype.attachListeners = function() {
-		document.querySelector(`.${_masterClass} #mmsTextOut`).addEventListener('click', (evt)=>{
-			// @ts-ignore
-			evt.target.select();
-		});
-		document.querySelector(`.${_masterClass} .mmsFTlbr span`).addEventListener('click', (evt)=>{
+		// Close Button
+		document.querySelector(`.${_masterClass} .mmsFTlbr .mmsClsBtn`).addEventListener('click', (evt)=>{
 			this.hideMeta();
 		});
+		// Copy Button
+		document.querySelector(`.${_masterClass} .mmsFTlbr .mmsCpyBtn`).addEventListener('click', (evt)=>{
+			/** @type {HTMLTextAreaElement} */
+			const textArea = this.uiElem.querySelector('#mmsTextOut');
+			this.copyToClipboard(textArea.value);
+		});
+		// Catch all clicks, for auto modal dismissal
 		document.addEventListener('click', evt => {
 			// Hide popup if click was outside
 			// @ts-ignore
@@ -491,9 +550,6 @@ const MusicMetaScraper = (function(){
 		if (this.uiElem){
 			this.uiElem.style.display = 'none';
 		}
-	}
-	MmsConstructor.prototype.copyMeta = async function() {
-		_copyString(await this.rip());
 	}
 	/**
 	 * Rip the meta info from the site, and get raw (JSON or string)
