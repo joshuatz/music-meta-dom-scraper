@@ -1,11 +1,12 @@
 {
   "name": "music-meta-scraper",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Very basic JS Bookmarklet to pull Song / Album Discography information from various websites.",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "parcel build index.js --out-file index.build.js --out-dir . --target browser --no-source-maps --experimental-scope-hoisting && node bookmarklet-creator.js"
+    "build": "parcel build index.js --out-file index.build.js --out-dir . --target browser --no-source-maps --experimental-scope-hoisting && node bookmarklet-creator.js",
+    "copy": "cat ./index.js | CLIP"
   },
   "keywords": [],
   "author": "Joshua Tzucker",
@@ -13,6 +14,7 @@
   "dependencies": {},
   "devDependencies": {
     "@types/spotify-api": "0.0.3",
+    "@types/wicg-mediasession": "^1.1.0",
     "parcel-bundler": "^1.12.4"
   },
   "browserslist": [

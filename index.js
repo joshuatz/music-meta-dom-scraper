@@ -27,6 +27,10 @@ const windowWAny = window;
  * @typedef {SpotifyApi.TrackObjectFull} SpotifyTrack
  */
 
+/**
+ * @typedef {'album' | 'playlist' | 'favorites' | 'search' | 'unknown'} SpotifyPageType
+ */
+
 const MusicMetaScraper = (function(){
 	let _spotifyToken;
 	const _hiddenClass = 'mmsHidden';
@@ -102,9 +106,44 @@ const MusicMetaScraper = (function(){
 			genres: []
 		}
 	}
+
+	/**
+	 * Check if object is valid song meta
+	 * @param {any} songMeta 
+	 */
+	const _getIsValidSong = (songMeta) => {
+		if (!songMeta || typeof songMeta !== 'object') {
+			return false;
+		}
+
+		/** @type {Array<keyof SongMeta>} */
+		const requiredProps = ['songTitle', 'artistName', 'albumTitle'];
+		for (const prop of requiredProps) {
+			if (typeof songMeta[prop] !== 'string' || !songMeta[prop]) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * Use if you want to be sure you are only pushing valid results to array
+	 * @param {any} songMeta 
+	 * @param {SongMeta[]} songCollection 
+	 * @returns {boolean} if the song was valid and added or not
+	 */
+	const _pushSongToCollection = (songMeta, songCollection) => {
+		if (_getIsValidSong(songMeta)) {
+			songCollection.push(songMeta);
+			return true;
+		}
+
+		return false;
+	}
 	/**
 	 * Grab inner text from an element. Mainly a wrapper around .innerText to ignore TS error
-	 * @param {Element} element - The HTML element to grab text from
+	 * @param {Element | null} [element] - The HTML element to grab text from
 	 * @param {boolean} [OPT_trim] - Optional: Should the grabbed text be .trim()'ed?
 	 */
 	const _getInnerText = function(element, OPT_trim){
@@ -125,6 +164,21 @@ const MusicMetaScraper = (function(){
 		}
 		return value;
 	}
+
+	/**
+	 * Get meta tag content by name or property
+	 * @param {string} nameOrProp
+	 * @returns {string | null} value
+	 */
+	const _getMetaContent = function(nameOrProp){
+		const match = document.querySelector(`meta[name="${nameOrProp}"], meta[property="${nameOrProp}"]`);
+		if (match) {
+			return match.getAttribute('content');
+		}
+
+		return null;
+	}
+
 	/**
 	 * Copy text to clipboard
 	 * @param {string} text
@@ -338,85 +392,102 @@ const MusicMetaScraper = (function(){
 			return result;
 		},
 		spotify: async function() {
+			const spotifyInstance = new MmsConstructor(true).spotify();
 			const pathName = document.location.pathname;
 			let shouldExtractActivePlayingOnly = false;
-			const activeRowElem = document.querySelector('.tracklist-row--active');
 			let globalAlbumTitle = '';
 			let globalReleaseYear;
 
-			if (document.location.pathname.startsWith('/album/')) {
-				const albumTitleElem = document.querySelector('.TrackListHeader .mo-info-name');
-				const additionalInfoElem = document.querySelector('.TrackListHeader p[class*="additional-info"]');
-				if (albumTitleElem) {
-					globalAlbumTitle = albumTitleElem.getAttribute('title');
+			/** @type {Record<Exclude<SpotifyPageType, 'unknown'>, string>} */
+			const pageTypeMap = {
+				album: '/album/',
+				playlist: '/playlist/',
+				favorites: '/collection/tracks',
+				search: '/search/'
+			}
+			/** @type {SpotifyPageType} */
+			let pageType = 'unknown';
+			for (const pageTypeName in pageTypeMap) {
+				if (pathName.startsWith(pageTypeMap[pageTypeName])) {
+					pageType = /** @type {SpotifyPageType} */ (pageTypeName);
+				}
+			}
+			if (pageType === 'album') {
+				// Scrape Album Title
+				const albumTitle = _getMetaContent('og:title');
+				if (albumTitle) {
+					globalAlbumTitle = albumTitle;
 				} else {
 					// Scrape from title
 					globalAlbumTitle = document.title.replace('Spotify – ','');
 				}
-				if (additionalInfoElem) {
-					const infoText = _getInnerText(additionalInfoElem);
-					const yearMatch = /\d{4}/.exec(infoText);
+
+				// Scrape aditional album info
+				let releaseDateStr = _getMetaContent('music:release_date');
+				// Try per track info if global meta tag is not there
+				if (!releaseDateStr) {
+					const additionalInfoElem = document.querySelector('.TrackListHeader p[class*="additional-info"]');
+					releaseDateStr = _getInnerText(additionalInfoElem);
+				}
+				if (releaseDateStr) {
+					const yearMatch = /\d{4}/.exec(releaseDateStr);
 					if (yearMatch) {
 						globalReleaseYear = parseInt(yearMatch[0], 10);
 					}
 				}
 			}
 
-			/** @param {HTMLDivElement | HTMLLIElement} row */
-			const parseDomRow = (row) => {
-				const albumTitle = _getInnerText(row.querySelector('a[class*="album-name"]')) || globalAlbumTitle;
-				const durationElem = row.querySelector('.tracklist-duration span');
-				/** @type {SongMeta} */
-				let songInfo = {
-					songTitle: _getInnerText(row.querySelector('.tracklist-name')),
-					artistName: _getInnerText(row.querySelector('a[class*="artist-name"]')),
-					albumTitle
-				};
-
-				if (durationElem) {
-					songInfo.durationLength = _getInnerText(durationElem);
-				}
-				if (typeof globalReleaseYear === 'number') {
-					songInfo.releaseYear = globalReleaseYear;
-				}
-
-				return songInfo;
-			}
-
-			if (pathName.startsWith('/collection/tracks') || pathName.startsWith('/playlist/')) {
+			if (pageType === 'favorites' || pageType === 'playlist' || pageType === 'search') {
 				shouldExtractActivePlayingOnly = true;
 			}
 
 			// === Actual Extraction ===
 			
 			/** @type {SongCollection} */
-			let result = [];
+			let resultArr = [];
 
-			if (shouldExtractActivePlayingOnly && activeRowElem) {
-				// @ts-ignore
-				result.push(parseDomRow(activeRowElem))
-			} else {
-				/** @type {NodeListOf<HTMLLIElement>} */
+			if (shouldExtractActivePlayingOnly) {
+				const activeRowElem = spotifyInstance.getActiveTrackRow();
+				spotifyInstance.parseDomRow(activeRowElem, pageType, resultArr, globalAlbumTitle, globalReleaseYear);
+				// If there is not active row, then we should fallback to extracting all
+				shouldExtractActivePlayingOnly = !!activeRowElem;
+				if (shouldExtractActivePlayingOnly && !resultArr.length) {
+					// Try to grab from Web API
+					console.log(`Trying to extract from Web API`);
+					_pushSongToCollection(MmsConstructor.scrapeMediaSession(), resultArr);
+				}
+			}
+			
+			if (!shouldExtractActivePlayingOnly) {
 				// Don't grab recommended section
-				const allTrackRows = document.querySelectorAll('.tracklist-container:not([class*="Recommended"]) ol.tracklist li.tracklist-row')
+				const allTrackRows = spotifyInstance.getAllTrackRows();
 				allTrackRows.forEach((trackRow) => {
-					result.push(parseDomRow(trackRow));
+					spotifyInstance.parseDomRow(trackRow, pageType, resultArr, globalAlbumTitle, globalReleaseYear);
 				});
 			}
 
-			if (!result.length) {
-				// Likely scenario is playing off search results, or something similar that messes with the active track selectors.
-				// FALLBACK to mini-player extraction
-				/** @type {HTMLAnchorElement | null} */
-				const miniPlayerTrackLinkElem = document.querySelector('a[aria-label*="Now playing"][href*="track/"]');
-				if (miniPlayerTrackLinkElem) {
-					const miniPlayerTrackId = miniPlayerTrackLinkElem.href.match(/track\/([0-9a-z]+)/i)[1];
-					const songMeta = await (new MmsConstructor(true).spotify().getTrackById(miniPlayerTrackId))
-					result.push(songMeta);
+			if (!resultArr.length) {
+				if (shouldExtractActivePlayingOnly) {
+					// Likely scenario is playing off search results, or something similar that messes with the active track selectors.
+					// FALLBACK to mini-player extraction
+					/** @type {HTMLAnchorElement | null} */
+					const miniPlayerTrackLinkElem = document.querySelector('a[aria-label*="Now playing"][href*="track/"]');
+					if (miniPlayerTrackLinkElem) {
+						const miniPlayerTrackId = miniPlayerTrackLinkElem.href.match(/track\/([0-9a-z]+)/i)[1];
+						const songMeta = await (new MmsConstructor(true).spotify().getTrackById(miniPlayerTrackId))
+						resultArr.push(songMeta);
+					}
+				} else {
+					// Something went wrong with extracting all tracks on page
+					// This is likely to happen with pages with mixed track lists - e.g. all track don't belong to same album. Such as search results and custom playlists
+					// @TODO - this could eventually be supported, by making a duplicate API call that matches the current page, to get full track info. Would need to find correct API endpoints for each page type.
+					if (pageType === 'search') {
+						console.warn(`Extracting multiple results from /search is currently unsupported. Please start playing a song if you are trying to extract a specific result.`);
+					}
 				}
 			}
 
-			return result;
+			return resultArr;
 		}
 	}
 	/**
@@ -589,6 +660,7 @@ const MusicMetaScraper = (function(){
 	 * @param {string} [token] override spotify auth token
 	 */
 	MmsConstructor.prototype.spotify = function(token){
+		const ApiBase = `https://api.spotify.com/v1`;
 		/** @type {RequestInit} */
 		const sameOriginMode = {
 			mode: 'same-origin'
@@ -624,6 +696,7 @@ const MusicMetaScraper = (function(){
 			}
 		}
 		const getToken = async (refresh) => {
+			// Cache with instance global
 			if (_spotifyToken && !refresh) {
 				return _spotifyToken;
 			};
@@ -632,6 +705,13 @@ const MusicMetaScraper = (function(){
 			/** @type {string} */
 			const token = (await res.json()).accessToken;
 			return token;
+		}
+		/** @param {string} endpoint */
+		const fetchWithAuth = async (endpoint) => {
+			await init();
+			const res = await fetch(endpoint, getAuthFetchOptions(_spotifyToken));
+			const json = await res.json();
+			return json;
 		}
 		/**
 		 * Get track details by ID (e.g. '4uZkg6aWtrUGW5mcsjoTgU')
@@ -649,8 +729,8 @@ const MusicMetaScraper = (function(){
 		 */
 		const getTracksById = async (trackIds) => {
 			await init();
-			const endpoint = `https://api.spotify.com/v1/tracks?ids=${trackIds.join(',')}&market=from_token`;
-			const resJson = await (await fetch(endpoint, getAuthFetchOptions(_spotifyToken))).json();
+			const endpoint = `${ApiBase}/tracks?ids=${trackIds.join(',')}&market=from_token`;
+			const resJson = await fetchWithAuth(endpoint);
 			return resJson.tracks.map(track => spotifyToMms(track));
 		}
 		/**
@@ -672,10 +752,94 @@ const MusicMetaScraper = (function(){
 
 			return songMeta;
 		}
+
+		/** @param {HTMLDivElement | HTMLLIElement} row */
+		/**
+		 * 
+		 * @param {HTMLDivElement | HTMLLIElement | Element} row 
+		 * @param {SpotifyPageType} pageType
+		 * @param {SongMeta[]} resultArr - Where to push result to
+		 * @param {string} [globalAlbumTitle] 
+		 * @param {number} [globalReleaseYear] 
+		 * @returns {void}
+		 */
+		const parseDomRow = (row, pageType, resultArr, globalAlbumTitle, globalReleaseYear) => {
+			if (!row) {
+				return;
+			}
+
+			// NOTE: They have removed pretty much all readable CSS & HTML, so the selectors are pretty crazy now
+			// Search results page does not have album title in DOM
+			const albumTitle = _getInnerText(row.querySelector(`a[href^="/album/"]`));
+
+			/** @type {SongMeta} */
+			let songInfo = {
+				songTitle: _getInnerText(row.querySelector('div[dir][as]')),
+				artistName: _getInnerText(row.querySelector('span a[href*="/artist/"]')),
+				albumTitle: albumTitle || globalAlbumTitle
+			};
+
+			if (pageType !== 'unknown') {
+				/** @type {Record<Exclude<SpotifyPageType, 'unknown'>, number>} */
+				const durationColIndexMap = {
+					search: 2,
+					album: 3,
+					playlist: 4,
+					favorites: 5
+				}
+				const durationColIndex = durationColIndexMap[pageType];
+				const durationElem = row.querySelector(`div[role="gridcell"][aria-colindex="${durationColIndex}"] > div`);
+				if (durationElem) {
+					songInfo.durationLength = _getInnerText(durationElem);
+				}
+			}
+			if (typeof globalReleaseYear === 'number') {
+				songInfo.releaseYear = globalReleaseYear;
+			}
+
+			const songPushed = _pushSongToCollection(songInfo, resultArr);
+
+			if (!songPushed) {
+				console.warn(`Failed to parse Spotify track DOM Row`, row, songInfo);
+			}
+		}
+
+		/**
+		 * Get all track DOM elements
+		 * @returns {HTMLDivElement[]}
+		 */
+		const getAllTrackRows = () => {
+			return Array.from(document.querySelectorAll('div[role="row"]'));
+		}
+		
+		/**
+		 * Return the actively playing track, if exists
+		 * @returns {?HTMLDivElement}
+		 */
+		const getActiveTrackRow = () => {
+			// Spotify removed all semantic HTML / CSS that indicates currently playing track
+			// This is nuts, but the easiest way is to look for a track that has a specific highlighted green color title
+			const allTracks = getAllTrackRows();
+			for (const track of allTracks) {
+				// UGH :(
+				const possibleTitles = Array.from(track.querySelectorAll('div > div > div > div > div > div > div> div> div> div'));
+				for (const elem of possibleTitles) {
+					const colorStr = getComputedStyle(elem).color;
+					if (colorStr === 'rgb(29, 185, 84)') {
+						return track;
+					}
+				}
+			}
+
+			return null;
+		}
 		return {
 			getToken,
+			getAllTrackRows,
+			getActiveTrackRow,
 			getTrackById,
 			getTracksById,
+			parseDomRow,
 			init
 		}
 	}
@@ -742,6 +906,29 @@ const MusicMetaScraper = (function(){
 			songInfo.albumTitle = _getInnerText(songArea.querySelector('h2'));
 		}
 		return songInfo;
+	}
+
+	/**
+	 * Tries to grab info from MediaSession Web API
+	 * @see https://developer.mozilla.org/en-US/docs/Web/API/MediaSession
+	 * @returns {SongMeta | null}
+	 */
+	MmsConstructor.scrapeMediaSession = () => {
+		if ('mediaSession' in navigator) {
+			const mediaSession = window.navigator.mediaSession;
+			const metaData = mediaSession.metadata;
+			if (metaData) {
+				/** @type {SongMeta} */
+				const songMeta = {
+					albumTitle: metaData.album,
+					artistName: metaData.artist,
+					songTitle: metaData.title
+				}
+				return songMeta;
+			}
+		}
+
+		return null;
 	}
 	return MmsConstructor;
 })();
