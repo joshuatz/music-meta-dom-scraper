@@ -4,7 +4,7 @@
 // ==/Bookmarklet==
 
 /** @type {Window & Object} */
-const windowWAny = window;
+var windowWAny = window;
 
 /**
  * @typedef {Object} SongMeta
@@ -31,7 +31,7 @@ const windowWAny = window;
  * @typedef {'album' | 'playlist' | 'favorites' | 'search' | 'unknown'} SpotifyPageType
  */
 
-const MusicMetaScraper = (function(){
+var MusicMetaScraper = (function(){
 	let _spotifyToken;
 	const _hiddenClass = 'mmsHidden';
 	const _masterClass = 'musicMetaScraper';
@@ -362,6 +362,7 @@ const MusicMetaScraper = (function(){
 			let result = [];
 			const releaseSchemaElem = document.querySelector('script[type="application/ld+json"]#release_schema, script[type="application/ld+json"]#master_schema');
 			if (releaseSchemaElem) {
+				// Not exactly to spec, but uses https://schema.org/MusicAlbum
 				const releaseSchema = JSON.parse(_getInnerText(releaseSchemaElem));
 				const albumTitle = releaseSchema.name;
 				const genres = releaseSchema.genre || [];
@@ -373,6 +374,9 @@ const MusicMetaScraper = (function(){
 				if (releaseSchema.releaseOf && releaseSchema.releaseOf.byArtist) {
 					const artistMetas = releaseSchema.releaseOf.byArtist;
 					artistName = artistMetas.map(meta => meta.name).join(', ');
+				}
+				if (!artistName && releaseSchema.byArtist) {
+					artistName = releaseSchema.byArtist.name;
 				}
 				const releaseYear = releaseSchema.datePublished;
 				for (const track of releaseSchema.tracks) {
@@ -412,9 +416,11 @@ const MusicMetaScraper = (function(){
 					pageType = /** @type {SpotifyPageType} */ (pageTypeName);
 				}
 			}
+			console.log(`Spotify Page Type = ${pageType}`);
+
 			if (pageType === 'album') {
 				// Scrape Album Title
-				const albumTitle = _getMetaContent('og:title');
+				const albumTitle = _getInnerText(document.querySelector('span h1'));
 				if (albumTitle) {
 					globalAlbumTitle = albumTitle;
 				} else {
@@ -437,7 +443,7 @@ const MusicMetaScraper = (function(){
 				}
 			}
 
-			if (pageType === 'favorites' || pageType === 'playlist' || pageType === 'search') {
+			if (pageType === 'favorites' || pageType === 'playlist' || pageType === 'search' || pageType === 'unknown') {
 				shouldExtractActivePlayingOnly = true;
 			}
 
@@ -451,6 +457,11 @@ const MusicMetaScraper = (function(){
 				spotifyInstance.parseDomRow(activeRowElem, pageType, resultArr, globalAlbumTitle, globalReleaseYear);
 				// If there is not active row, then we should fallback to extracting all
 				shouldExtractActivePlayingOnly = !!activeRowElem;
+				console.log({
+					activeRowElem,
+					shouldExtractActivePlayingOnly,
+					resultArr
+				});
 				if (shouldExtractActivePlayingOnly && !resultArr.length) {
 					// Try to grab from Web API
 					console.log(`Trying to extract from Web API`);
@@ -484,6 +495,8 @@ const MusicMetaScraper = (function(){
 					if (pageType === 'search') {
 						console.warn(`Extracting multiple results from /search is currently unsupported. Please start playing a song if you are trying to extract a specific result.`);
 					}
+					console.log(`Trying to extract from Web API`);
+					_pushSongToCollection(MmsConstructor.scrapeMediaSession(), resultArr);
 				}
 			}
 
@@ -825,8 +838,13 @@ const MusicMetaScraper = (function(){
 				const possibleTitles = Array.from(track.querySelectorAll('div > div > div > div > div > div > div> div> div> div'));
 				for (const elem of possibleTitles) {
 					const colorStr = getComputedStyle(elem).color;
-					if (colorStr === 'rgb(29, 185, 84)') {
+					if (colorStr === 'rgb(29, 185, 84)' || colorStr === 'rgb(30, 215, 96)') {
 						return track;
+					} else {
+						console.log({
+							colorStr,
+							elem
+						});
 					}
 				}
 			}

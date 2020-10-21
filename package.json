@@ -1,6 +1,6 @@
 {
   "name": "music-meta-scraper",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Very basic JS Bookmarklet to pull Song / Album Discography information from various websites.",
   "main": "index.js",
   "scripts": {
