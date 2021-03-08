@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "parcel build index.js --out-file index.build.js --out-dir . --target browser --no-source-maps --experimental-scope-hoisting && node bookmarklet-creator.js",
+    "build": "esbuild index.js --bundle --minify --outfile=index.build.js && node bookmarklet-creator.js",
     "copy": "cat ./index.js | CLIP"
   },
   "keywords": [],
@@ -15,7 +15,7 @@
   "devDependencies": {
     "@types/spotify-api": "0.0.8",
     "@types/wicg-mediasession": "^1.1.0",
-    "parcel-bundler": "^1.12.4"
+    "esbuild": "^0.8.57"
   },
   "browserslist": [
     "last 2 Chrome version"
