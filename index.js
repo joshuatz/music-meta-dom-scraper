@@ -360,7 +360,10 @@ var MusicMetaScraper = (function(){
 		discogs: function() {
 			/** @type {SongCollection} */
 			let result = [];
+
 			const releaseSchemaElem = document.querySelector('script[type="application/ld+json"]#release_schema, script[type="application/ld+json"]#master_schema');
+			const appJsonElem = document.querySelector('script[id="dsdata"][type="application/json"]');
+
 			if (releaseSchemaElem) {
 				// Not exactly to spec, but uses https://schema.org/MusicAlbum
 				const releaseSchema = JSON.parse(_getInnerText(releaseSchemaElem));
@@ -379,19 +382,36 @@ var MusicMetaScraper = (function(){
 					artistName = releaseSchema.byArtist.name;
 				}
 				const releaseYear = releaseSchema.datePublished;
-				for (const track of releaseSchema.tracks) {
-					const songTitle = track.name;
-					/** @type {SongMeta} */
-					let songInfo = {
+
+				/** @type {string[]} */
+				let songTitles = [];
+
+				if (releaseSchema.tracks) {
+					for (const track of releaseSchema.tracks) {
+						songTitles.push(track.name);
+					}
+				} else if (appJsonElem) {
+					// Try to extract tracks from Discogs page data obj
+					const appData = JSON.parse(appJsonElem.textContent);
+					for (const key in appData['data']) {
+						if ('tracks' in appData.data[key]) {
+							appData.data[key].tracks.forEach(track => {
+								songTitles.push(track.title);
+							});
+						}
+					}
+				}
+
+				songTitles.forEach(t => {
+					result.push({
+						songTitle: t,
 						albumTitle,
 						releaseYear,
 						genres,
 						primaryGenre,
-						songTitle,
 						artistName
-					}
-					result.push(songInfo);
-				}
+					});
+				});
 			}
 			return result;
 		},

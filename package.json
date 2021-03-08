@@ -1,6 +1,6 @@
 {
   "name": "music-meta-scraper",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "description": "Very basic JS Bookmarklet to pull Song / Album Discography information from various websites.",
   "main": "index.js",
   "scripts": {
@@ -13,7 +13,7 @@
   "license": "MIT",
   "dependencies": {},
   "devDependencies": {
-    "@types/spotify-api": "0.0.3",
+    "@types/spotify-api": "0.0.8",
     "@types/wicg-mediasession": "^1.1.0",
     "parcel-bundler": "^1.12.4"
   },
