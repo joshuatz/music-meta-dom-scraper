@@ -29,6 +29,7 @@ var windowWAny = window;
 
 /**
  * @typedef {'album' | 'playlist' | 'favorites' | 'search' | 'unknown'} SpotifyPageType
+ * @typedef {'album' | 'playlist' | 'my-tracks' | 'search' | 'unknown'} TidalPageType
  */
 
 var MusicMetaScraper = (function(){
@@ -220,7 +221,7 @@ var MusicMetaScraper = (function(){
 
 	// Ripper method per site
 	/**
-	 * @typedef {'bing' | 'allMusic' | 'google' | 'discogs' | 'spotify'} RipperName
+	 * @typedef {'bing' | 'allMusic' | 'google' | 'discogs' | 'spotify' | 'tidal'} RipperName
 	 * @typedef {() => Promise<SongCollection>} RipperPromiseFunc
 	 * @typedef {() => SongCollection} RipperFunc
 	 * @typedef {RipperPromiseFunc | RipperFunc} RipperFunction
@@ -521,6 +522,68 @@ var MusicMetaScraper = (function(){
 			}
 
 			return resultArr;
+		},
+		tidal: async function() {
+			const pathName = document.location.pathname;
+			let shouldExtractActivePlayingOnly = false;
+
+			/** @type {Record<Exclude<TidalPageType, 'unknown'>, string>} */
+			const pageTypeMap = {
+				album: '/album/',
+				playlist: '/playlist/',
+				"my-tracks": '/my-collection/tracks',
+				search: '/search'
+			}
+			/** @type {TidalPageType} */
+			let pageType = 'unknown';
+			for (const pageTypeName in pageTypeMap) {
+				if (pathName.startsWith(pageTypeMap[pageTypeName])) {
+					pageType = /** @type {TidalPageType} */ (pageTypeName);
+				}
+			}
+			console.log(`Tidal Page Type = ${pageType}`);
+
+			if (pageType === 'album') {
+				// @TODO - scrape album title, etc.
+			}
+
+			if (pageType === 'my-tracks' || pageType === 'playlist' || pageType === 'search' || pageType === 'unknown') {
+				shouldExtractActivePlayingOnly = true;
+			}
+
+			// === Actual Extraction ===
+			
+			/** @type {SongCollection} */
+			let resultArr = [];
+
+			if (shouldExtractActivePlayingOnly) {
+				const activePlayerElem = document.querySelector('div#footerPlayer');
+				if (activePlayerElem) {
+					const albumTitle = _getInnerText(activePlayerElem.querySelector('a[href^="/album/"'));
+					const songTitle = _getInnerText(activePlayerElem.querySelector('a[href^="/track/"] > span'));
+					const artists = Array.from(activePlayerElem.querySelectorAll('a[href^="/artist/"')).map(e => _getInnerText(e));
+
+					if (!albumTitle) {
+						// @TODO - sometimes the album link is missing
+					}
+
+					resultArr.push({
+						albumTitle,
+						songTitle,
+						artistName: artists.join(', ')
+					});
+				}
+			} else {
+				// @TODO
+			}
+
+			if (!resultArr.length) {
+				// Try media session
+				console.log(`Trying to extract from Web API`);
+				_pushSongToCollection(MmsConstructor.scrapeMediaSession(), resultArr);
+			}
+
+			return resultArr;
 		}
 	}
 	/**
@@ -574,6 +637,10 @@ var MusicMetaScraper = (function(){
 		else if (window.location.hostname === 'open.spotify.com') {
 			siteInfo.ripper = _rippers.spotify;
 			siteInfo.name = 'Spotify';
+		}
+		else if (window.location.hostname === 'listen.tidal.com') {
+			siteInfo.ripper = _rippers.tidal;
+			siteInfo.name = 'Tidal';
 		}
 		return siteInfo;
 	}
@@ -664,6 +731,7 @@ var MusicMetaScraper = (function(){
 	 */
 	MmsConstructor.prototype.ripRaw = async function(OPT_preferJson) {
 		const siteInfo = this.detectSite();
+		console.log({ siteInfo });
 		if (siteInfo.ripper){
 			this.scrapedInfo = await siteInfo.ripper();
 			console.log(this.scrapedInfo);
