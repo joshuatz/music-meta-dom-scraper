@@ -223,10 +223,10 @@ var MusicMetaScraper = (function(){
 	 * @typedef {'bing' | 'allMusic' | 'google' | 'discogs' | 'spotify'} RipperName
 	 * @typedef {() => Promise<SongCollection>} RipperPromiseFunc
 	 * @typedef {() => SongCollection} RipperFunc
-	 * @typedef {RipperPromiseFunc | RipperFunc} RipperFuction
+	 * @typedef {RipperPromiseFunc | RipperFunc} RipperFunction
 	 */
 	/**
-	 * @typedef {Record<RipperName, RipperFuction>} RippersCollection
+	 * @typedef {Record<RipperName, RipperFunction>} RippersCollection
 	 */
 	/**
 	 * @type {RippersCollection}
@@ -548,6 +548,9 @@ var MusicMetaScraper = (function(){
 	 * Detect the type of site
 	 */
 	MmsConstructor.prototype.detectSite = function() {
+		/**
+		 * @type {{ripper: RipperFunction | null, name: string}}
+		 */
 		let siteInfo = {
 			ripper: null,
 			name: ''
