@@ -1,9 +1,15 @@
 const fs = require('fs');
+const path = require('path');
 const BOOKMARKLET_TITLE = 'Music-Meta-DOM-Scraper'
-const codeInFile = `${__dirname}/index.build.js`;
-const htmlOutFile = `${__dirname}/bookmarklet-install.html`;
+const codeInFile = path.join(__dirname,'index.build.js');
+const distDir = path.join(__dirname, 'dist');
+const htmlOutFile = path.join(distDir, 'index.html');
 
 const createBookmarklet = () => {
+	// Prep dir
+	if (!fs.existsSync(distDir)) {
+		fs.mkdirSync(distDir);
+	}
 	// Get raw code from file
 	const rawCode = fs.readFileSync(codeInFile).toString();
 	// Clean up

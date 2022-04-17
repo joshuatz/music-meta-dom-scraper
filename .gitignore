@@ -1,5 +1,5 @@
 node_modules
 package-lock.json
-bookmarklet-install.html
 *.build.*
 *.cache
+dist
