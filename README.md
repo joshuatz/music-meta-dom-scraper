@@ -13,11 +13,13 @@ This does not use an API or headless browser; you have to navigate to the source
 
 ## Supported sites
 Right now, only:
- - AllMusic
- - Discogs
- - Bing search results
- - Google search result (usually)
- - Spotify (most pages)
+
+- AllMusic
+- Discogs
+- Bing search results
+- Google search result (usually)
+- Spotify (most pages)
+- Tidal (currently playing only)
 
 This repo was mainly created as a way to consolidate the code from two separate bookmarklets I had to use scrape those sources separately.
 
