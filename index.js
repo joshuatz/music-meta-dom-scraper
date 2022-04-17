@@ -557,24 +557,13 @@ var MusicMetaScraper = (function(){
 			let resultArr = [];
 
 			if (shouldExtractActivePlayingOnly) {
-				const activePlayerElem = document.querySelector('div#footerPlayer');
-				if (activePlayerElem) {
-					const albumTitle = _getInnerText(activePlayerElem.querySelector('a[href^="/album/"'));
-					const songTitle = _getInnerText(activePlayerElem.querySelector('a[href^="/track/"] > span'));
-					const artists = Array.from(activePlayerElem.querySelectorAll('a[href^="/artist/"')).map(e => _getInnerText(e));
-
-					if (!albumTitle) {
-						// @TODO - sometimes the album link is missing
-					}
-
-					resultArr.push({
-						albumTitle,
-						songTitle,
-						artistName: artists.join(', ')
-					});
-				}
+				// DOM scraping does not well in Tidal for active playing track, but it has full MediaSession support
+				// so just use that
+				_pushSongToCollection(MmsConstructor.scrapeMediaSession(), resultArr);
 			} else {
 				// @TODO
+				// Not sure this can really be done, as search results / track listing pages do not seem to include 
+				// album title anywhere in DOM...
 			}
 
 			if (!resultArr.length) {
