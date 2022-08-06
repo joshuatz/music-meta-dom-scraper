@@ -325,18 +325,24 @@ var MusicMetaScraper = (function(){
 			let result = [];
 			const albumTitle = _getInnerText(document.querySelector('[data-attrid*=" album"]')).replace(/^Album:\s/,'');
 			const artistName = _getInnerText(document.querySelector('[data-attrid*=":artist"]')).replace(/^Artists?:\s/,'');
-			// Song title is not directly exposed... has to be regex matched unfortunately, from '{artist} - {title} - YouTube' string
+			// Song title is not directly exposed... has to be extracted alt text, which matches '{artist} - {title} - YouTube' string OR '{title} | {artist} - YouTube' (notice artist vs title is flipped around in second pattern)
+			const getSongTitleFromYtPatternString = (patternString = '') => {
+				// https://regexr.com/6rc9l
+				const matches = patternString.match(/.+? - (.+) - YouTube$|(.+) \| .+ - YouTube$/);
+				if (!matches) {
+					return '';
+				}
+
+				return matches.slice(1).filter(s => !!s)[0];
+			}
 			let songTitle = '';
 			const ytLinkText = _getInnerText(document.querySelector('.kp-wholepage a[href*="youtube"] h3 span, [data-ved] a[href*="youtube"] h3'));
-			const ytTitleMatch = ytLinkText.match(/[^-]+ - (.*) - YouTube$/);
-			if (ytTitleMatch) {
-				songTitle = ytTitleMatch[1];
-			}
-			else {
+			songTitle = getSongTitleFromYtPatternString(ytLinkText);
+			if (!songTitle) {
 				// Try to extract title via img alt text
 				const image = document.querySelector('.kp-wholepage a[href*="youtube"] img[alt]');
 				if (image) {
-					songTitle = (image.getAttribute('alt').match(/[^-]+ - (.*)/)[1] || '')
+					songTitle = (image.getAttribute('alt').match(/.+ [-|] (.*)/)[1] || '')
 				}
 			}
 			/** @type {SongMeta} */
@@ -723,7 +729,7 @@ var MusicMetaScraper = (function(){
 		console.log({ siteInfo });
 		if (siteInfo.ripper){
 			this.scrapedInfo = await siteInfo.ripper();
-			console.log(this.scrapedInfo);
+			console.log('scrapedInfo', this.scrapedInfo);
 			const preferJson = typeof(OPT_preferJson)==='boolean' ? OPT_preferJson : this.prefersJson;
 			const output = preferJson ? this.scrapedInfo : MmsConstructor.metaArrToTsvString(this.scrapedInfo);
 			return output;
