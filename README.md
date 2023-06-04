@@ -1,4 +1,4 @@
-# Music-Meta-Dom-Scraper
+# Music-Meta-Dom-Scraper [![Netlify Status](https://api.netlify.com/api/v1/badges/28ec7c89-e928-4daa-bcb2-b6bdaa40d4fc/deploy-status)](https://app.netlify.com/sites/music-meta-dom-scraper-bookmarklet/deploys)
 
 ## What is this?
 Very basic JS Bookmarklet to pull Song / Album Discography information from various websites when you are on a webpage that has song metadata, and lets you copy and paste into a spreadsheet or JSON file. 
