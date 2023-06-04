@@ -873,7 +873,7 @@ var MusicMetaScraper = (function(){
 
 			/** @type {SongMeta} */
 			let songInfo = {
-				songTitle: _getInnerText(row.querySelector('div[dir][as]')),
+				songTitle: _getInnerText(row.querySelector('a[href^="/track/"]')),
 				artistName: _getInnerText(row.querySelector('span a[href*="/artist/"]')),
 				albumTitle: albumTitle || globalAlbumTitle
 			};
