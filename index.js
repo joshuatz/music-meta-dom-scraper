@@ -633,7 +633,7 @@ var MusicMetaScraper = (function(){
 			siteInfo.ripper = _rippers.spotify;
 			siteInfo.name = 'Spotify';
 		}
-		else if (window.location.hostname === 'listen.tidal.com') {
+		else if (window.location.host === 'tidal.com') {
 			siteInfo.ripper = _rippers.tidal;
 			siteInfo.name = 'Tidal';
 		}
