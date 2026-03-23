@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
-const BOOKMARKLET_TITLE = 'Music-Meta-DOM-Scraper'
-const codeInFile = path.join(__dirname,'index.build.js');
+const BOOKMARKLET_TITLE = 'Music-Meta-DOM-Scraper';
+const codeInFile = path.join(__dirname, 'index.build.js');
 const distDir = path.join(__dirname, 'dist');
 const htmlOutFile = path.join(distDir, 'index.html');
 
@@ -12,13 +12,39 @@ const createBookmarklet = () => {
 	}
 	// Get raw code from file
 	const rawCode = fs.readFileSync(codeInFile).toString();
-	// Clean up
-	const outCode = `javascript:${encodeURIComponent(rawCode)}`;
-	// Write out as template
-	const rawHtml = getInstallPageHtml(outCode, BOOKMARKLET_TITLE)
-	fs.writeFileSync(htmlOutFile, rawHtml);
-}
 
+	// Encode as bookmarklet / JS URI string
+	const outCode = `javascript:${encodeURIComponent(rawCode)}`;
+
+	// Write out as HTML file with draggable install link
+	fs.writeFileSync(htmlOutFile, getInstallPageHtml(outCode, BOOKMARKLET_TITLE));
+	// as well as a file containing just the URI-encoded JS string that can
+	// be manually copied
+	fs.writeFileSync(path.join(distDir, 'index.md'), getInstallPageMarkdown(outCode, BOOKMARKLET_TITLE))
+};
+
+/**
+ * Get the raw markdown code for the bookmarklet install page
+ * @param {string} bookmarkletString - Raw bookmarklet JS
+ * @param {string} title - Title for bookmarklet
+ */
+const getInstallPageMarkdown = (bookmarkletString, title) => {
+	const mdEscapedBookmarkletString = bookmarkletString.replace(/\(/g, '%28').replace(/\)/g, '%29');
+
+	return `
+# ${title} - Install Page
+
+You can copy and paste the string below into a new bookmark to manually create a bookmarklet version:
+
+\`\`\`
+${bookmarkletString}
+\`\`\`
+
+Or, drag this link (assuming this markdown is rendered in a way that preserves it - most hosted renderers, like GitHub will not preserve it for security reasons):
+
+<a class="bookmarklet" target="_blank" href="${bookmarkletString}">${title}</a>
+`
+}
 
 /**
  * Get the raw HTML code for the bookmarklet install page
@@ -66,6 +92,6 @@ const getInstallPageHtml = (bookmarkletString, title) => {
 	</div>
 </body>
 </html>`;
-}
+};
 
 createBookmarklet();

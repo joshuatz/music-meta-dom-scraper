@@ -2,4 +2,7 @@ node_modules
 package-lock.json
 *.build.*
 *.cache
-dist
+dist/**
+# Include this in git, so it can be accessed in GitHub without requiring going
+# somewhere else for a hosted version
+!dist/index.md
